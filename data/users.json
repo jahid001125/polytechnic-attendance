@@ -1,0 +1,56 @@
+[
+  {
+    "id": "1",
+    "name": "Admin",
+    "email": "admin@poly.edu",
+    "password": "admin123",
+    "role": "admin",
+    "department": "All"
+  },
+  {
+    "id": "2",
+    "name": "Mr. Rahman",
+    "email": "rahman@poly.edu",
+    "password": "teacher123",
+    "role": "teacher",
+    "department": "CST"
+  },
+  {
+    "id": "3",
+    "name": "Ms. Fatema",
+    "email": "fatema@poly.edu",
+    "password": "teacher123",
+    "role": "teacher",
+    "department": "EET"
+  },
+  {
+    "id": "4",
+    "name": "Rahim Mia",
+    "email": "rahim@poly.edu",
+    "password": "student123",
+    "role": "student",
+    "department": "CST",
+    "studentId": "CST-001",
+    "semester": "4th"
+  },
+  {
+    "id": "5",
+    "name": "Karim Uddin",
+    "email": "karim@poly.edu",
+    "password": "student123",
+    "role": "student",
+    "department": "CST",
+    "studentId": "CST-002",
+    "semester": "4th"
+  },
+  {
+    "id": "6",
+    "name": "Sadia Islam",
+    "email": "sadia@poly.edu",
+    "password": "student123",
+    "role": "student",
+    "department": "EET",
+    "studentId": "EET-001",
+    "semester": "2nd"
+  }
+]

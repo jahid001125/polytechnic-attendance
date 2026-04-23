@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Student Panel - Attendance System</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"/>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet"/>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
+  <style>
+    body { background: #f0f4f8; font-family: 'Segoe UI', sans-serif; }
+    .navbar { background: linear-gradient(135deg, #0d6efd, #0043a8); }
+    .card { border: none; border-radius: 15px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); }
+    .card-header {
+      background: linear-gradient(135deg, #0d6efd, #0043a8);
+      color: white; border-radius: 15px 15px 0 0 !important;
+      padding: 15px 20px;
+    }
+    .stat-card {
+      background: white; border-radius: 12px; padding: 20px;
+      text-align: center; box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+    }
+    .stat-card .number { font-size: 32px; font-weight: 700; color: #0d6efd; }
+    .attendance-item {
+      background: #f8f9fa; border-radius: 10px;
+      padding: 12px 15px; margin-bottom: 8px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    #qr-reader { border-radius: 10px; overflow: hidden; }
+    .btn-scan {
+      background: linear-gradient(135deg, #0d6efd, #0043a8);
+      border: none; border-radius: 10px;
+      padding: 12px 30px; font-weight: 600; color: white;
+    }
+    .btn-scan:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(13,110,253,0.4); color: white; }
+    .progress { border-radius: 10px; height: 12px; }
+    .form-control {
+      border-radius: 10px; border: 2px solid #e9ecef; padding: 10px 15px;
+    }
+    .form-control:focus {
+      border-color: #0d6efd; box-shadow: 0 0 0 0.2rem rgba(13,110,253,0.15);
+    }
+    .alert { border-radius: 10px; }
+  </style>
+</head>
+<body>
+
+<nav class="navbar navbar-dark px-4 py-3">
+  <span class="navbar-brand fw-bold"><i class="fas fa-user-graduate me-2"></i>Student Panel</span>
+  <div class="d-flex align-items-center gap-3">
+    <span class="text-white" id="studentName"></span>
+    <button class="btn btn-outline-light btn-sm" onclick="logout()">
+      <i class="fas fa-sign-out-alt me-1"></i>Logout
+    </button>
+  </div>
+</nav>
+
+<div class="container py-4">
+
+  <!-- Stats -->
+  <div class="row g-3 mb-4">
+    <div class="col-4">
+      <div class="stat-card">
+        <div class="number" id="totalClasses">0</div>
+        <div class="text-muted small">Total Classes</div>
+      </div>
+    </div>
+    <div class="col-4">
+      <div class="stat-card">
+        <div class="number" id="attended">0</div>
+        <div class="text-muted small">Attended</div>
+      </div>
+    </div>
+    <div class="col-4">
+      <div class="stat-card">
+        <div class="number" id="percentage">0%</div>
+        <div class="text-muted small">Percentage</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-4">
+    <!-- QR Scanner -->
+    <div class="col-md-5">
+      <div class="card">
+        <div class="card-header">
+          <i class="fas fa-qrcode me-2"></i>Scan QR Code
+        </div>
+        <div class="card-body p-4">
+          <div id="alertBox" class="alert d-none mb-3"></div>
+
+          <div id="scanSection">
+            <p class="text-muted small mb-3">
+              <i class="fas fa-info-circle me-1"></i>
+              Ask your teacher to show the QR code, then click scan
+            </p>
+            <div id="qr-reader" class="mb-3"></div>
+            <button class="btn btn-scan w-100" id="scanBtn" onclick="startScan()">
+              <i class="fas fa-camera me-2"></i>Start Camera Scan
+            </button>
+            <div class="text-center my-3 text-muted">― or enter manually ―</div>
+            <input type="text" id="manualSession" class="form-control mb-2" placeholder="Paste Session ID here"/>
+            <button class="btn btn-outline-primary w-100" onclick="manualAttend()">
+              <i class="fas fa-check me-2"></i>Mark Attendance Manually
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Attendance History -->
+    <div class="col-md-7">
+      <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <span><i class="fas fa-history me-2"></i>My Attendance History</span>
+          <button class="btn btn-light btn-sm" onclick="loadHistory()">
+            <i class="fas fa-sync"></i>
+          </button>
+        </div>
+        <div class="card-body">
+          <!-- Progress Bar -->
+          <div class="mb-4">
+            <div class="d-flex justify-content-between mb-1">
+              <small class="fw-semibold">Attendance Rate</small>
+              <small id="progressText">0%</small>
+            </div>
+            <div class="progress">
+              <div class="progress-bar bg-primary" id="progressBar" style="width:0%"></div>
+            </div>
+            <small class="text-muted">Minimum 75% required</small>
+          </div>
+
+          <div id="historyList">
+            <div class="text-center text-muted py-4">
+              <i class="fas fa-clipboard fa-3x mb-3 opacity-25"></i>
+              <p>No attendance records yet</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  let currentUser = null;
+  let html5QrCode = null;
+  let scanning = false;
+
+  window.onload = () => {
+    const user = localStorage.getItem('user');
+    if (!user) { window.location.href = '/'; return; }
+    currentUser = JSON.parse(user);
+    if (currentUser.role !== 'student') { window.location.href = '/'; return; }
+    document.getElementById('studentName').textContent = currentUser.name;
+    loadHistory();
+  };
+
+  async function loadHistory() {
+    try {
+      const res = await fetch(`/api/my-attendance/${currentUser.studentId}`);
+      const data = await res.json();
+      const records = data.records;
+
+      document.getElementById('attended').textContent = records.length;
+      document.getElementById('totalClasses').textContent = records.length;
+
+      const pct = records.length > 0 ? 100 : 0;
+      document.getElementById('percentage').textContent = pct + '%';
+      document.getElementById('progressBar').style.width = pct + '%';
+      document.getElementById('progressText').textContent = pct + '%';
+      document.getElementById('progressBar').className = 'progress-bar ' + (pct >= 75 ? 'bg-success' : 'bg-danger');
+
+      const list = document.getElementById('historyList');
+      if (records.length === 0) {
+        list.innerHTML = '<div class="text-center text-muted py-4"><i class="fas fa-clipboard fa-3x mb-3 opacity-25"></i><p>No attendance records yet</p></div>';
+        return;
+      }
+
+      list.innerHTML = records.map(r => `
+        <div class="attendance-item">
+          <div>
+            <div class="fw-semibold">${r.subject}</div>
+            <div class="text-muted small">${r.department} • ${r.date} • ${r.time}</div>
+          </div>
+          <span class="badge bg-success">Present</span>
+        </div>
+      `).join('');
+    } catch(e) {
+      console.error(e);
+    }
+  }
+
+  function startScan() {
+    if (scanning) {
+      html5QrCode.stop().then(() => {
+        scanning = false;
+        document.getElementById('scanBtn').innerHTML = '<i class="fas fa-camera me-2"></i>Start Camera Scan';
+      });
+      return;
+    }
+
+    html5QrCode = new Html5Qrcode("qr-reader");
+    html5QrCode.start(
+      { facingMode: "environment" },
+      { fps: 10, qrbox: { width: 200, height: 200 } },
+      async (decodedText) => {
+        await html5QrCode.stop();
+        scanning = false;
+        document.getElementById('scanBtn').innerHTML = '<i class="fas fa-camera me-2"></i>Start Camera Scan';
+        try {
+          const qrData = JSON.parse(decodedText);
+          await markAttendance(qrData.sessionId);
+        } catch(e) {
+          showAlert('Invalid QR code!', 'danger');
+        }
+      },
+      () => {}
+    ).then(() => {
+      scanning = true;
+      document.getElementById('scanBtn').innerHTML = '<i class="fas fa-stop me-2"></i>Stop Camera';
+    }).catch(() => {
+      showAlert('Camera not available! Use manual entry below.', 'warning');
+    });
+  }
+
+  async function manualAttend() {
+    const sessionId = document.getElementById('manualSession').value.trim();
+    if (!sessionId) { showAlert('Please enter a Session ID!', 'warning'); return; }
+    await markAttendance(sessionId);
+  }
+
+  async function markAttendance(sessionId) {
+    try {
+      const res = await fetch('/api/attend', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sessionId,
+          studentId: currentUser.studentId,
+          studentName: currentUser.name,
+          department: currentUser.department
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        showAlert('✅ ' + data.message, 'success');
+        loadHistory();
+      } else {
+        showAlert('❌ ' + data.message, 'danger');
+      }
+    } catch(e) {
+      showAlert('Server error!', 'danger');
+    }
+  }
+
+  function showAlert(msg, type) {
+    const box = document.getElementById('alertBox');
+    box.className = `alert alert-${type}`;
+    box.textContent = msg;
+    box.classList.remove('d-none');
+    setTimeout(() => box.classList.add('d-none'), 4000);
+  }
+
+  function logout() {
+    localStorage.removeItem('user');
+    window.location.href = '/';
+  }
+</script>
+</body>
+</html>

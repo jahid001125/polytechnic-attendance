@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Admin Panel - Attendance System</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"/>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet"/>
+  <style>
+    body { background: #f0f4f8; font-family: 'Segoe UI', sans-serif; }
+    .navbar { background: linear-gradient(135deg, #6f42c1, #4a1a9e); }
+    .card { border: none; border-radius: 15px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); }
+    .card-header {
+      background: linear-gradient(135deg, #6f42c1, #4a1a9e);
+      color: white; border-radius: 15px 15px 0 0 !important;
+      padding: 15px 20px;
+    }
+    .stat-card {
+      background: white; border-radius: 12px; padding: 20px;
+      text-align: center; box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+    }
+    .stat-card .number { font-size: 32px; font-weight: 700; color: #6f42c1; }
+    .nav-tabs .nav-link { border-radius: 10px 10px 0 0; font-weight: 600; }
+    .nav-tabs .nav-link.active { background: #6f42c1; color: white; border-color: #6f42c1; }
+    .form-control, .form-select {
+      border-radius: 10px; border: 2px solid #e9ecef; padding: 10px 15px;
+    }
+    .form-control:focus, .form-select:focus {
+      border-color: #6f42c1; box-shadow: 0 0 0 0.2rem rgba(111,66,193,0.15);
+    }
+    .btn-add {
+      background: linear-gradient(135deg, #6f42c1, #4a1a9e);
+      border: none; border-radius: 10px;
+      padding: 10px 25px; font-weight: 600; color: white;
+    }
+    .btn-add:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(111,66,193,0.4); color: white; }
+    table { border-radius: 10px; overflow: hidden; }
+    thead { background: linear-gradient(135deg, #6f42c1, #4a1a9e); color: white; }
+    .badge-admin { background: #6f42c1; }
+    .badge-teacher { background: #0d6efd; }
+    .badge-student { background: #198754; }
+  </style>
+</head>
+<body>
+
+<nav class="navbar navbar-dark px-4 py-3">
+  <span class="navbar-brand fw-bold"><i class="fas fa-shield-alt me-2"></i>Admin Panel</span>
+  <div class="d-flex align-items-center gap-3">
+    <span class="text-white" id="adminName"></span>
+    <button class="btn btn-outline-light btn-sm" onclick="logout()">
+      <i class="fas fa-sign-out-alt me-1"></i>Logout
+    </button>
+  </div>
+</nav>
+
+<div class="container py-4">
+
+  <!-- Stats -->
+  <div class="row g-3 mb-4">
+    <div class="col-3">
+      <div class="stat-card">
+        <div class="number" id="totalUsers">0</div>
+        <div class="text-muted small">Total Users</div>
+      </div>
+    </div>
+    <div class="col-3">
+      <div class="stat-card">
+        <div class="number" id="totalTeachers">0</div>
+        <div class="text-muted small">Teachers</div>
+      </div>
+    </div>
+    <div class="col-3">
+      <div class="stat-card">
+        <div class="number" id="totalStudents">0</div>
+        <div class="text-muted small">Students</div>
+      </div>
+    </div>
+    <div class="col-3">
+      <div class="stat-card">
+        <div class="number" id="totalAttendance">0</div>
+        <div class="text-muted small">Attendance Records</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tabs -->
+  <ul class="nav nav-tabs mb-4" id="adminTabs">
+    <li class="nav-item">
+      <a class="nav-link active" onclick="showTab('users')" href="#">
+        <i class="fas fa-users me-1"></i>Manage Users
+      </a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link" onclick="showTab('attendance')" href="#">
+        <i class="fas fa-clipboard-list me-1"></i>Attendance Records
+      </a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link" onclick="showTab('add')" href="#">
+        <i class="fas fa-user-plus me-1"></i>Add User
+      </a>
+    </li>
+  </ul>
+
+  <!-- Users Tab -->
+  <div id="tab-users">
+    <div class="card">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <span><i class="fas fa-users me-2"></i>All Users</span>
+        <input type="text" class="form-control w-auto" placeholder="Search..." id="userSearch" oninput="filterUsers()"/>
+      </div>
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-hover mb-0">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Role</th>
+                <th>Department</th>
+                <th>Student ID</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="usersTable"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Attendance Tab -->
+  <div id="tab-attendance" class="d-none">
+    <div class="card">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <span><i class="fas fa-clipboard-list me-2"></i>All Attendance Records</span>
+        <button class="btn btn-light btn-sm" onclick="exportAllCSV()">
+          <i class="fas fa-download me-1"></i>Export CSV
+        </button>
+      </div>
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-hover mb-0">
+            <thead>
+              <tr>
+                <th>Student</th>
+                <th>Student ID</th>
+                <th>Subject</th>
+                <th>Department</th>
+                <th>Date</th>
+                <th>Time</th>
+              </tr>
+            </thead>
+            <tbody id="attendanceTable"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add User Tab -->
+  <div id="tab-add" class="d-none">
+    <div class="card">
+      <div class="card-header">
+        <i class="fas fa-user-plus me-2"></i>Add New User
+      </div>
+      <div class="card-body p-4">
+        <div id="addAlert" class="alert d-none"></div>
+        <div class="row g-3">
+          <div class="col-md-6">
+            <label class="form-label fw-semibold">Full Name</label>
+            <input type="text" id="newName" class="form-control" placeholder="Enter full name"/>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label fw-semibold">Email</label>
+            <input type="email" id="newEmail" class="form-control" placeholder="Enter email"/>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label fw-semibold">Password</label>
+            <input type="password" id="newPassword" class="form-control" placeholder="Enter password"/>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label fw-semibold">Role</label>
+            <select id="newRole" class="form-select" onchange="toggleStudentFields()">
+              <option value="teacher">Teacher</option>
+              <option value="student">Student</option>
+              <option value="admin">Admin</option>
+            </select>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label fw-semibold">Department</label>
+            <select id="newDept" class="form-select">
+              <option value="CST">CST - Computer Science</option>
+              <option value="EET">EET - Electrical Engineering</option>
+              <option value="CEE">CEE - Civil Engineering</option>
+              <option value="MT">MT - Mechanical Technology</option>
+            </select>
+          </div>
+          <div class="col-md-6" id="studentIdField">
+            <label class="form-label fw-semibold">Student ID</label>
+            <input type="text" id="newStudentId" class="form-control" placeholder="e.g. CST-010"/>
+          </div>
+          <div class="col-md-6" id="semesterField">
+            <label class="form-label fw-semibold">Semester</label>
+            <select id="newSemester" class="form-select">
+              <option>1st</option><option>2nd</option><option>3rd</option>
+              <option>4th</option><option>5th</option><option>6th</option>
+              <option>7th</option><option>8th</option>
+            </select>
+          </div>
+          <div class="col-12">
+            <button class="btn btn-add" onclick="addUser()">
+              <i class="fas fa-plus me-2"></i>Add User
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  let allUsers = [];
+  let allAttendance = [];
+
+  window.onload = () => {
+    const user = localStorage.getItem('user');
+    if (!user) { window.location.href = '/'; return; }
+    const u = JSON.parse(user);
+    if (u.role !== 'admin') { window.location.href = '/'; return; }
+    document.getElementById('adminName').textContent = u.name;
+    loadAll();
+  };
+
+  async function loadAll() {
+    await loadUsers();
+    await loadAttendance();
+  }
+
+  async function loadUsers() {
+    const res = await fetch('/api/users');
+    const data = await res.json();
+    allUsers = data.users;
+    document.getElementById('totalUsers').textContent = allUsers.length;
+    document.getElementById('totalTeachers').textContent = allUsers.filter(u => u.role === 'teacher').length;
+    document.getElementById('totalStudents').textContent = allUsers.filter(u => u.role === 'student').length;
+    renderUsers(allUsers);
+  }
+
+  function renderUsers(users) {
+    const tbody = document.getElementById('usersTable');
+    if (users.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-4">No users found</td></tr>';
+      return;
+    }
+    tbody.innerHTML = users.map(u => `
+      <tr>
+        <td><strong>${u.name}</strong></td>
+        <td>${u.email}</td>
+        <td><span class="badge badge-${u.role}">${u.role.toUpperCase()}</span></td>
+        <td>${u.department || '-'}</td>
+        <td>${u.studentId || '-'}</td>
+        <td>
+          <button class="btn btn-danger btn-sm" onclick="deleteUser('${u.id}', '${u.name}')">
+            <i class="fas fa-trash"></i>
+          </button>
+        </td>
+      </tr>
+    `).join('');
+  }
+
+  function filterUsers() {
+    const q = document.getElementById('userSearch').value.toLowerCase();
+    renderUsers(allUsers.filter(u =>
+      u.name.toLowerCase().includes(q) ||
+      u.email.toLowerCase().includes(q) ||
+      (u.role || '').toLowerCase().includes(q)
+    ));
+  }
+
+  async function loadAttendance() {
+    const res = await fetch('/api/attendance');
+    const data = await res.json();
+    allAttendance = data.attendance;
+    document.getElementById('totalAttendance').textContent = allAttendance.length;
+
+    const tbody = document.getElementById('attendanceTable');
+    if (allAttendance.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-4">No attendance records yet</td></tr>';
+      return;
+    }
+    tbody.innerHTML = allAttendance.map(a => `
+      <tr>
+        <td><strong>${a.studentName}</strong></td>
+        <td>${a.studentId}</td>
+        <td>${a.subject}</td>
+        <td>${a.department}</td>
+        <td>${a.date}</td>
+        <td>${a.time}</td>
+      </tr>
+    `).join('');
+  }
+
+  async function deleteUser(id, name) {
+    if (!confirm(`Delete user "${name}"?`)) return;
+    await fetch(`/api/users/${id}`, { method: 'DELETE' });
+    loadUsers();
+  }
+
+  async function addUser() {
+    const name = document.getElementById('newName').value.trim();
+    const email = document.getElementById('newEmail').value.trim();
+    const password = document.getElementById('newPassword').value.trim();
+    const role = document.getElementById('newRole').value;
+    const department = document.getElementById('newDept').value;
+    const studentId = document.getElementById('newStudentId').value.trim();
+    const semester = document.getElementById('newSemester').value;
+    const alertBox = document.getElementById('addAlert');
+
+    if (!name || !email || !password) {
+      alertBox.className = 'alert alert-warning';
+      alertBox.textContent = 'Please fill all required fields!';
+      alertBox.classList.remove('d-none');
+      return;
+    }
+
+    const userData = { name, email, password, role, department };
+    if (role === 'student') { userData.studentId = studentId; userData.semester = semester; }
+
+    const res = await fetch('/api/users', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(userData)
+    });
+    const data = await res.json();
+
+    if (data.success) {
+      alertBox.className = 'alert alert-success';
+      alertBox.textContent = `✅ User "${name}" added successfully!`;
+      alertBox.classList.remove('d-none');
+      document.getElementById('newName').value = '';
+      document.getElementById('newEmail').value = '';
+      document.getElementById('newPassword').value = '';
+      loadUsers();
+      setTimeout(() => alertBox.classList.add('d-none'), 3000);
+    }
+  }
+
+  function toggleStudentFields() {
+    const role = document.getElementById('newRole').value;
+    const show = role === 'student';
+    document.getElementById('studentIdField').style.display = show ? 'block' : 'none';
+    document.getElementById('semesterField').style.display = show ? 'block' : 'none';
+  }
+
+  function showTab(tab) {
+    ['users', 'attendance', 'add'].forEach(t => {
+      document.getElementById(`tab-${t}`).classList.add('d-none');
+    });
+    document.getElementById(`tab-${tab}`).classList.remove('d-none');
+    document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+    event.target.classList.add('active');
+    if (tab === 'attendance') loadAttendance();
+  }
+
+  function exportAllCSV() {
+    const rows = [['Student Name', 'Student ID', 'Subject', 'Department', 'Date', 'Time']];
+    allAttendance.forEach(a => rows.push([a.studentName, a.studentId, a.subject, a.department, a.date, a.time]));
+    const csv = rows.map(r => r.join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = `all_attendance_${new Date().toLocaleDateString()}.csv`;
+    a.click();
+  }
+
+  function logout() {
+    localStorage.removeItem('user');
+    window.location.href = '/';
+  }
+
+  toggleStudentFields();
+</script>
+</body>
+</html>
