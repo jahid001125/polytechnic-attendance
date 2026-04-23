@@ -6,6 +6,8 @@
   <title>Admin Panel - Attendance System</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"/>
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet"/>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
   <style>
     body { background: #f0f4f8; font-family: 'Segoe UI', sans-serif; }
     .navbar { background: linear-gradient(135deg, #6f42c1, #4a1a9e); }
@@ -39,11 +41,23 @@
     .badge-admin { background: #6f42c1; }
     .badge-teacher { background: #0d6efd; }
     .badge-student { background: #198754; }
+
+    /* Print Styles */
+    @media print {
+      body { background: white !important; }
+      .navbar, .nav-tabs, .no-print, #tab-users, #tab-add { display: none !important; }
+      .card { box-shadow: none !important; border: 1px solid #ddd !important; }
+      .card-header { background: #6f42c1 !important; -webkit-print-color-adjust: exact; }
+      #tab-attendance { display: block !important; }
+      .print-header { display: block !important; }
+    }
+    .print-header { display: none; text-align: center; margin-bottom: 20px; }
+    .print-header h3 { color: #6f42c1; }
   </style>
 </head>
 <body>
 
-<nav class="navbar navbar-dark px-4 py-3">
+<nav class="navbar navbar-dark px-4 py-3 no-print">
   <span class="navbar-brand fw-bold"><i class="fas fa-shield-alt me-2"></i>Admin Panel</span>
   <div class="d-flex align-items-center gap-3">
     <span class="text-white" id="adminName"></span>
@@ -56,7 +70,7 @@
 <div class="container py-4">
 
   <!-- Stats -->
-  <div class="row g-3 mb-4">
+  <div class="row g-3 mb-4 no-print">
     <div class="col-3">
       <div class="stat-card">
         <div class="number" id="totalUsers">0</div>
@@ -78,25 +92,25 @@
     <div class="col-3">
       <div class="stat-card">
         <div class="number" id="totalAttendance">0</div>
-        <div class="text-muted small">Attendance Records</div>
+        <div class="text-muted small">Records</div>
       </div>
     </div>
   </div>
 
   <!-- Tabs -->
-  <ul class="nav nav-tabs mb-4" id="adminTabs">
+  <ul class="nav nav-tabs mb-4 no-print" id="adminTabs">
     <li class="nav-item">
-      <a class="nav-link active" onclick="showTab('users')" href="#">
+      <a class="nav-link active" onclick="showTab('users', this)" href="#">
         <i class="fas fa-users me-1"></i>Manage Users
       </a>
     </li>
     <li class="nav-item">
-      <a class="nav-link" onclick="showTab('attendance')" href="#">
+      <a class="nav-link" onclick="showTab('attendance', this)" href="#">
         <i class="fas fa-clipboard-list me-1"></i>Attendance Records
       </a>
     </li>
     <li class="nav-item">
-      <a class="nav-link" onclick="showTab('add')" href="#">
+      <a class="nav-link" onclick="showTab('add', this)" href="#">
         <i class="fas fa-user-plus me-1"></i>Add User
       </a>
     </li>
@@ -114,12 +128,8 @@
           <table class="table table-hover mb-0">
             <thead>
               <tr>
-                <th>Name</th>
-                <th>Email</th>
-                <th>Role</th>
-                <th>Department</th>
-                <th>Student ID</th>
-                <th>Action</th>
+                <th>Name</th><th>Email</th><th>Role</th>
+                <th>Department</th><th>Student ID</th><th>Action</th>
               </tr>
             </thead>
             <tbody id="usersTable"></tbody>
@@ -131,24 +141,58 @@
 
   <!-- Attendance Tab -->
   <div id="tab-attendance" class="d-none">
+
+    <!-- Print Header (only shows when printing) -->
+    <div class="print-header">
+      <h3>Polytechnic Attendance System</h3>
+      <p>Attendance Report — Generated: <span id="printDate"></span></p>
+      <hr/>
+    </div>
+
+    <!-- Filter + Export Buttons -->
+    <div class="card mb-3 no-print">
+      <div class="card-body p-3">
+        <div class="row g-2 align-items-center">
+          <div class="col-md-3">
+            <select class="form-select" id="filterDept" onchange="filterAttendance()">
+              <option value="">All Departments</option>
+              <option value="CST">CST</option>
+              <option value="EET">EET</option>
+              <option value="CEE">CEE</option>
+              <option value="MT">MT</option>
+            </select>
+          </div>
+          <div class="col-md-3">
+            <input type="date" class="form-control" id="filterDate" onchange="filterAttendance()"/>
+          </div>
+          <div class="col-md-6 d-flex gap-2 justify-content-end">
+            <button class="btn btn-success" onclick="exportCSV()">
+              <i class="fas fa-file-csv me-1"></i>Export CSV
+            </button>
+            <button class="btn btn-danger" onclick="exportPDF()">
+              <i class="fas fa-file-pdf me-1"></i>Export PDF
+            </button>
+            <button class="btn btn-secondary" onclick="printReport()">
+              <i class="fas fa-print me-1"></i>Print
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <div class="card">
-      <div class="card-header d-flex justify-content-between align-items-center">
-        <span><i class="fas fa-clipboard-list me-2"></i>All Attendance Records</span>
-        <button class="btn btn-light btn-sm" onclick="exportAllCSV()">
-          <i class="fas fa-download me-1"></i>Export CSV
-        </button>
+      <div class="card-header">
+        <i class="fas fa-clipboard-list me-2"></i>
+        Attendance Records — <span id="recordCount">0</span> records
       </div>
       <div class="card-body p-0">
         <div class="table-responsive">
-          <table class="table table-hover mb-0">
+          <table class="table table-hover mb-0" id="attendanceTableEl">
             <thead>
               <tr>
-                <th>Student</th>
-                <th>Student ID</th>
-                <th>Subject</th>
-                <th>Department</th>
-                <th>Date</th>
-                <th>Time</th>
+                <th>Student</th><th>Student ID</th>
+                <th>Subject</th><th>Department</th>
+                <th>Date</th><th>Time</th>
               </tr>
             </thead>
             <tbody id="attendanceTable"></tbody>
@@ -190,10 +234,10 @@
           <div class="col-md-6">
             <label class="form-label fw-semibold">Department</label>
             <select id="newDept" class="form-select">
-              <option value="CST">CST - Computer Science</option>
-              <option value="EET">EET - Electrical Engineering</option>
-              <option value="CEE">CEE - Civil Engineering</option>
-              <option value="MT">MT - Mechanical Technology</option>
+              <option value="CST">CST</option>
+              <option value="EET">EET</option>
+              <option value="CEE">CEE</option>
+              <option value="MT">MT</option>
             </select>
           </div>
           <div class="col-md-6" id="studentIdField">
@@ -217,12 +261,12 @@
       </div>
     </div>
   </div>
-
 </div>
 
 <script>
   let allUsers = [];
   let allAttendance = [];
+  let filteredAttendance = [];
 
   window.onload = () => {
     const user = localStorage.getItem('user');
@@ -230,6 +274,7 @@
     const u = JSON.parse(user);
     if (u.role !== 'admin') { window.location.href = '/'; return; }
     document.getElementById('adminName').textContent = u.name;
+    document.getElementById('printDate').textContent = new Date().toLocaleDateString('en-BD');
     loadAll();
   };
 
@@ -262,7 +307,7 @@
         <td>${u.department || '-'}</td>
         <td>${u.studentId || '-'}</td>
         <td>
-          <button class="btn btn-danger btn-sm" onclick="deleteUser('${u.id}', '${u.name}')">
+          <button class="btn btn-danger btn-sm" onclick="deleteUser('${u._id || u.id}', '${u.name}')">
             <i class="fas fa-trash"></i>
           </button>
         </td>
@@ -273,9 +318,7 @@
   function filterUsers() {
     const q = document.getElementById('userSearch').value.toLowerCase();
     renderUsers(allUsers.filter(u =>
-      u.name.toLowerCase().includes(q) ||
-      u.email.toLowerCase().includes(q) ||
-      (u.role || '').toLowerCase().includes(q)
+      u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q) || (u.role||'').toLowerCase().includes(q)
     ));
   }
 
@@ -283,14 +326,31 @@
     const res = await fetch('/api/attendance');
     const data = await res.json();
     allAttendance = data.attendance;
+    filteredAttendance = allAttendance;
     document.getElementById('totalAttendance').textContent = allAttendance.length;
+    renderAttendance(allAttendance);
+  }
 
+  function filterAttendance() {
+    const dept = document.getElementById('filterDept').value;
+    const date = document.getElementById('filterDate').value;
+
+    filteredAttendance = allAttendance.filter(a => {
+      const deptMatch = dept ? a.department === dept : true;
+      const dateMatch = date ? a.date === new Date(date).toLocaleDateString('en-BD') : true;
+      return deptMatch && dateMatch;
+    });
+    renderAttendance(filteredAttendance);
+  }
+
+  function renderAttendance(records) {
+    document.getElementById('recordCount').textContent = records.length;
     const tbody = document.getElementById('attendanceTable');
-    if (allAttendance.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-4">No attendance records yet</td></tr>';
+    if (records.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-4">No records found</td></tr>';
       return;
     }
-    tbody.innerHTML = allAttendance.map(a => `
+    tbody.innerHTML = records.map(a => `
       <tr>
         <td><strong>${a.studentName}</strong></td>
         <td>${a.studentId}</td>
@@ -334,10 +394,9 @@
       body: JSON.stringify(userData)
     });
     const data = await res.json();
-
     if (data.success) {
       alertBox.className = 'alert alert-success';
-      alertBox.textContent = `✅ User "${name}" added successfully!`;
+      alertBox.textContent = `✅ "${name}" added successfully!`;
       alertBox.classList.remove('d-none');
       document.getElementById('newName').value = '';
       document.getElementById('newEmail').value = '';
@@ -347,6 +406,56 @@
     }
   }
 
+  // ── Export CSV ────────────────────────────────────────
+  function exportCSV() {
+    const rows = [['Student Name', 'Student ID', 'Subject', 'Department', 'Date', 'Time']];
+    filteredAttendance.forEach(a => rows.push([a.studentName, a.studentId, a.subject, a.department, a.date, a.time]));
+    const csv = rows.map(r => r.join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `attendance_report_${new Date().toLocaleDateString()}.csv`;
+    link.click();
+  }
+
+  // ── Export PDF ────────────────────────────────────────
+  function exportPDF() {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+
+    // Header
+    doc.setFontSize(18);
+    doc.setTextColor(111, 66, 193);
+    doc.text('Polytechnic Attendance System', 14, 20);
+
+    doc.setFontSize(11);
+    doc.setTextColor(100);
+    doc.text(`Report Generated: ${new Date().toLocaleString('en-BD')}`, 14, 28);
+    doc.text(`Total Records: ${filteredAttendance.length}`, 14, 35);
+
+    // Table
+    doc.autoTable({
+      startY: 42,
+      head: [['Student Name', 'Student ID', 'Subject', 'Department', 'Date', 'Time']],
+      body: filteredAttendance.map(a => [a.studentName, a.studentId, a.subject, a.department, a.date, a.time]),
+      headStyles: { fillColor: [111, 66, 193], textColor: 255, fontStyle: 'bold' },
+      alternateRowStyles: { fillColor: [245, 240, 255] },
+      styles: { fontSize: 9, cellPadding: 4 },
+      margin: { left: 14, right: 14 }
+    });
+
+    doc.save(`attendance_report_${new Date().toLocaleDateString()}.pdf`);
+  }
+
+  // ── Print ─────────────────────────────────────────────
+  function printReport() {
+    // Show attendance tab before printing
+    document.getElementById('tab-attendance').classList.remove('d-none');
+    document.getElementById('printDate').textContent = new Date().toLocaleString('en-BD');
+    window.print();
+  }
+
   function toggleStudentFields() {
     const role = document.getElementById('newRole').value;
     const show = role === 'student';
@@ -354,32 +463,15 @@
     document.getElementById('semesterField').style.display = show ? 'block' : 'none';
   }
 
-  function showTab(tab) {
-    ['users', 'attendance', 'add'].forEach(t => {
-      document.getElementById(`tab-${t}`).classList.add('d-none');
-    });
+  function showTab(tab, el) {
+    ['users', 'attendance', 'add'].forEach(t => document.getElementById(`tab-${t}`).classList.add('d-none'));
     document.getElementById(`tab-${tab}`).classList.remove('d-none');
     document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
-    event.target.classList.add('active');
+    el.classList.add('active');
     if (tab === 'attendance') loadAttendance();
   }
 
-  function exportAllCSV() {
-    const rows = [['Student Name', 'Student ID', 'Subject', 'Department', 'Date', 'Time']];
-    allAttendance.forEach(a => rows.push([a.studentName, a.studentId, a.subject, a.department, a.date, a.time]));
-    const csv = rows.map(r => r.join(',')).join('\n');
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url; a.download = `all_attendance_${new Date().toLocaleDateString()}.csv`;
-    a.click();
-  }
-
-  function logout() {
-    localStorage.removeItem('user');
-    window.location.href = '/';
-  }
-
+  function logout() { localStorage.removeItem('user'); window.location.href = '/'; }
   toggleStudentFields();
 </script>
 </body>
