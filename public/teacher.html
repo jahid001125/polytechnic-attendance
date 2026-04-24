@@ -59,11 +59,10 @@
     .stat-card .number { font-size: 32px; font-weight: 700; color: #1a6b3c; }
     .security-badge {
       background: #e8f5e9; border: 2px solid #1a6b3c;
-      border-radius: 10px; padding: 8px 12px;
-      font-size: 12px; color: #1a6b3c;
+      border-radius: 10px; padding: 8px 12px; font-size: 12px; color: #1a6b3c;
     }
     .progress { height: 8px; border-radius: 5px; }
-    .qr-refresh-bar { transition: width 0.1s linear; }
+    .qr-refresh-bar { transition: width 1s linear; }
   </style>
 </head>
 <body>
@@ -121,13 +120,10 @@
               <option value="MT">MT - Mechanical Technology</option>
             </select>
           </div>
-
-          <!-- Security Info -->
           <div class="security-badge mb-4">
             <i class="fas fa-shield-alt me-1"></i>
-            <strong>Security Active:</strong> QR refreshes every 30 sec • GPS 50m limit
+            <strong>Security:</strong> QR refreshes every 5 min • GPS 50m limit
           </div>
-
           <button class="btn btn-generate w-100" onclick="startSession()">
             <i class="fas fa-map-marker-alt me-2"></i>Get Location & Generate QR
           </button>
@@ -135,33 +131,25 @@
         </div>
       </div>
 
-      <!-- QR Display -->
       <div id="qrSection" class="mt-4 d-none">
         <div class="qr-container">
           <h6 class="fw-bold mb-1" id="qrSubject"></h6>
           <p class="text-muted small mb-2" id="qrDept"></p>
-
           <img id="qrImage" src="" alt="QR Code"/>
-
-          <!-- 30 second countdown -->
           <div class="mt-3 mb-1">
-            <span class="token-timer safe" id="tokenTimer">30</span>
+            <span class="token-timer safe" id="tokenTimer">5:00</span>
           </div>
-          <small class="text-muted">QR refreshes every 30 seconds</small>
-
-          <!-- Progress bar -->
+          <small class="text-muted">QR refreshes every 5 minutes</small>
           <div class="progress mt-2 mb-3">
             <div class="progress-bar bg-success qr-refresh-bar" id="refreshBar" style="width:100%"></div>
           </div>
-
           <div class="text-muted small">
-            <i class="fas fa-lock me-1"></i>Screenshot নিলে কাজ করবে না!
+            <i class="fas fa-lock me-1"></i>Screenshot নিলে 5 মিনিট পর কাজ করবে না!
           </div>
         </div>
       </div>
     </div>
 
-    <!-- Live Attendance -->
     <div class="col-md-7">
       <div class="card h-100">
         <div class="card-header d-flex justify-content-between align-items-center">
@@ -190,8 +178,7 @@
   let currentSessionId = null;
   let tokenInterval = null;
   let pollInterval = null;
-  let refreshInterval = null;
-  let tokenTimeLeft = 30;
+  let tokenTimeLeft = 300; // ✅ 5 minutes = 300 seconds
 
   window.onload = () => {
     const user = localStorage.getItem('user');
@@ -220,15 +207,14 @@
   function startSession() {
     const subject = document.getElementById('subject').value.trim();
     if (!subject) { alert('Please enter a subject!'); return; }
-
     document.getElementById('locationStatus').textContent = '📍 Getting your location...';
-
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
-        document.getElementById('locationStatus').textContent = `✅ Location found! (${pos.coords.latitude.toFixed(4)}, ${pos.coords.longitude.toFixed(4)})`;
+        document.getElementById('locationStatus').textContent =
+          `✅ Location found! (${pos.coords.latitude.toFixed(4)}, ${pos.coords.longitude.toFixed(4)})`;
         await generateQR(pos.coords.latitude, pos.coords.longitude);
       },
-      (err) => {
+      () => {
         document.getElementById('locationStatus').textContent = '⚠️ Location denied! GPS check disabled.';
         generateQR(null, null);
       }
@@ -238,18 +224,13 @@
   async function generateQR(lat, lng) {
     const subject = document.getElementById('subject').value.trim();
     const department = document.getElementById('department').value;
-
     clearInterval(tokenInterval);
     clearInterval(pollInterval);
-    clearInterval(refreshInterval);
 
     const res = await fetch('/api/generate-qr', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        teacherId: currentUser.id, subject, department,
-        teacherLat: lat, teacherLng: lng
-      })
+      body: JSON.stringify({ teacherId: currentUser.id, subject, department, teacherLat: lat, teacherLng: lng })
     });
     const data = await res.json();
     currentSessionId = data.sessionId;
@@ -267,7 +248,7 @@
   }
 
   function startTokenTimer() {
-    tokenTimeLeft = 30;
+    tokenTimeLeft = 300; // ✅ 5 minutes
     updateTimerUI();
 
     tokenInterval = setInterval(async () => {
@@ -275,12 +256,11 @@
       updateTimerUI();
 
       if (tokenTimeLeft <= 0) {
-        // Refresh QR
         const res = await fetch(`/api/refresh-qr/${currentSessionId}`, { method: 'POST' });
         const data = await res.json();
         if (data.success) {
           document.getElementById('qrImage').src = data.qrImage;
-          tokenTimeLeft = 30;
+          tokenTimeLeft = 300; // ✅ reset to 5 minutes
         }
       }
     }, 1000);
@@ -289,14 +269,16 @@
   function updateTimerUI() {
     const timerEl = document.getElementById('tokenTimer');
     const barEl = document.getElementById('refreshBar');
-    timerEl.textContent = tokenTimeLeft + 's';
-    const pct = (tokenTimeLeft / 30) * 100;
+    const mins = Math.floor(tokenTimeLeft / 60);
+    const secs = tokenTimeLeft % 60;
+    timerEl.textContent = `${mins}:${secs.toString().padStart(2,'0')}`;
+    const pct = (tokenTimeLeft / 300) * 100; // ✅ out of 300
     barEl.style.width = pct + '%';
 
-    if (tokenTimeLeft > 15) {
+    if (tokenTimeLeft > 150) {
       timerEl.className = 'token-timer safe';
       barEl.className = 'progress-bar bg-success qr-refresh-bar';
-    } else if (tokenTimeLeft > 7) {
+    } else if (tokenTimeLeft > 60) {
       timerEl.className = 'token-timer warning';
       barEl.className = 'progress-bar bg-warning qr-refresh-bar';
     } else {

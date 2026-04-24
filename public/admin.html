@@ -38,21 +38,19 @@
     .btn-add:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(111,66,193,0.4); color: white; }
     table { border-radius: 10px; overflow: hidden; }
     thead { background: linear-gradient(135deg, #6f42c1, #4a1a9e); color: white; }
-    .badge-admin { background: #6f42c1; }
-    .badge-teacher { background: #0d6efd; }
-    .badge-student { background: #198754; }
-
-    /* Print Styles */
+    .pending-card {
+      background: #fff8e1; border: 2px solid #ffc107;
+      border-radius: 12px; padding: 15px; margin-bottom: 12px;
+    }
+    .pending-badge { background: #ffc107; color: #333; border-radius: 20px; padding: 3px 12px; font-size: 12px; font-weight: 600; }
     @media print {
       body { background: white !important; }
-      .navbar, .nav-tabs, .no-print, #tab-users, #tab-add { display: none !important; }
-      .card { box-shadow: none !important; border: 1px solid #ddd !important; }
-      .card-header { background: #6f42c1 !important; -webkit-print-color-adjust: exact; }
+      .navbar, .nav-tabs, .no-print, #tab-users, #tab-add, #tab-pending { display: none !important; }
+      .card { box-shadow: none !important; }
       #tab-attendance { display: block !important; }
       .print-header { display: block !important; }
     }
     .print-header { display: none; text-align: center; margin-bottom: 20px; }
-    .print-header h3 { color: #6f42c1; }
   </style>
 </head>
 <body>
@@ -91,22 +89,28 @@
     </div>
     <div class="col-3">
       <div class="stat-card">
-        <div class="number" id="totalAttendance">0</div>
-        <div class="text-muted small">Records</div>
+        <div class="number" id="pendingCount" style="color:#ffc107">0</div>
+        <div class="text-muted small">Pending</div>
       </div>
     </div>
   </div>
 
   <!-- Tabs -->
-  <ul class="nav nav-tabs mb-4 no-print" id="adminTabs">
+  <ul class="nav nav-tabs mb-4 no-print">
     <li class="nav-item">
       <a class="nav-link active" onclick="showTab('users', this)" href="#">
-        <i class="fas fa-users me-1"></i>Manage Users
+        <i class="fas fa-users me-1"></i>Users
+      </a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link" onclick="showTab('pending', this)" href="#">
+        <i class="fas fa-clock me-1"></i>Pending
+        <span class="badge bg-warning text-dark ms-1" id="pendingBadge">0</span>
       </a>
     </li>
     <li class="nav-item">
       <a class="nav-link" onclick="showTab('attendance', this)" href="#">
-        <i class="fas fa-clipboard-list me-1"></i>Attendance Records
+        <i class="fas fa-clipboard-list me-1"></i>Attendance
       </a>
     </li>
     <li class="nav-item">
@@ -127,10 +131,7 @@
         <div class="table-responsive">
           <table class="table table-hover mb-0">
             <thead>
-              <tr>
-                <th>Name</th><th>Email</th><th>Role</th>
-                <th>Department</th><th>Student ID</th><th>Action</th>
-              </tr>
+              <tr><th>Name</th><th>Email</th><th>Role</th><th>Department</th><th>Student ID</th><th>Action</th></tr>
             </thead>
             <tbody id="usersTable"></tbody>
           </table>
@@ -139,17 +140,30 @@
     </div>
   </div>
 
+  <!-- Pending Tab -->
+  <div id="tab-pending" class="d-none">
+    <div class="card">
+      <div class="card-header">
+        <i class="fas fa-clock me-2"></i>Pending Signup Requests
+      </div>
+      <div class="card-body">
+        <div id="pendingList">
+          <div class="text-center text-muted py-4">
+            <i class="fas fa-check-circle fa-3x mb-3 opacity-25"></i>
+            <p>No pending requests!</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Attendance Tab -->
   <div id="tab-attendance" class="d-none">
-
-    <!-- Print Header (only shows when printing) -->
     <div class="print-header">
-      <h3>Polytechnic Attendance System</h3>
-      <p>Attendance Report — Generated: <span id="printDate"></span></p>
-      <hr/>
+      <h3>Polytechnic Attendance Report</h3>
+      <p>Generated: <span id="printDate"></span></p><hr/>
     </div>
 
-    <!-- Filter + Export Buttons -->
     <div class="card mb-3 no-print">
       <div class="card-body p-3">
         <div class="row g-2 align-items-center">
@@ -167,10 +181,10 @@
           </div>
           <div class="col-md-6 d-flex gap-2 justify-content-end">
             <button class="btn btn-success" onclick="exportCSV()">
-              <i class="fas fa-file-csv me-1"></i>Export CSV
+              <i class="fas fa-file-csv me-1"></i>CSV
             </button>
             <button class="btn btn-danger" onclick="exportPDF()">
-              <i class="fas fa-file-pdf me-1"></i>Export PDF
+              <i class="fas fa-file-pdf me-1"></i>PDF
             </button>
             <button class="btn btn-secondary" onclick="printReport()">
               <i class="fas fa-print me-1"></i>Print
@@ -183,17 +197,13 @@
     <div class="card">
       <div class="card-header">
         <i class="fas fa-clipboard-list me-2"></i>
-        Attendance Records — <span id="recordCount">0</span> records
+        Records — <span id="recordCount">0</span> total
       </div>
       <div class="card-body p-0">
         <div class="table-responsive">
-          <table class="table table-hover mb-0" id="attendanceTableEl">
+          <table class="table table-hover mb-0">
             <thead>
-              <tr>
-                <th>Student</th><th>Student ID</th>
-                <th>Subject</th><th>Department</th>
-                <th>Date</th><th>Time</th>
-              </tr>
+              <tr><th>Student</th><th>Student ID</th><th>Subject</th><th>Department</th><th>Date</th><th>Time</th></tr>
             </thead>
             <tbody id="attendanceTable"></tbody>
           </table>
@@ -205,23 +215,21 @@
   <!-- Add User Tab -->
   <div id="tab-add" class="d-none">
     <div class="card">
-      <div class="card-header">
-        <i class="fas fa-user-plus me-2"></i>Add New User
-      </div>
+      <div class="card-header"><i class="fas fa-user-plus me-2"></i>Add New User</div>
       <div class="card-body p-4">
         <div id="addAlert" class="alert d-none"></div>
         <div class="row g-3">
           <div class="col-md-6">
             <label class="form-label fw-semibold">Full Name</label>
-            <input type="text" id="newName" class="form-control" placeholder="Enter full name"/>
+            <input type="text" id="newName" class="form-control" placeholder="Full name"/>
           </div>
           <div class="col-md-6">
             <label class="form-label fw-semibold">Email</label>
-            <input type="email" id="newEmail" class="form-control" placeholder="Enter email"/>
+            <input type="email" id="newEmail" class="form-control" placeholder="Email"/>
           </div>
           <div class="col-md-6">
             <label class="form-label fw-semibold">Password</label>
-            <input type="password" id="newPassword" class="form-control" placeholder="Enter password"/>
+            <input type="password" id="newPassword" class="form-control" placeholder="Password"/>
           </div>
           <div class="col-md-6">
             <label class="form-label fw-semibold">Role</label>
@@ -274,13 +282,13 @@
     const u = JSON.parse(user);
     if (u.role !== 'admin') { window.location.href = '/'; return; }
     document.getElementById('adminName').textContent = u.name;
-    document.getElementById('printDate').textContent = new Date().toLocaleDateString('en-BD');
+    document.getElementById('printDate').textContent = new Date().toLocaleString('en-BD');
     loadAll();
   };
 
   async function loadAll() {
     await loadUsers();
-    await loadAttendance();
+    await loadPending();
   }
 
   async function loadUsers() {
@@ -303,11 +311,11 @@
       <tr>
         <td><strong>${u.name}</strong></td>
         <td>${u.email}</td>
-        <td><span class="badge badge-${u.role}">${u.role.toUpperCase()}</span></td>
+        <td><span class="badge bg-${u.role === 'admin' ? 'purple' : u.role === 'teacher' ? 'primary' : 'success'}" style="background:${u.role==='admin'?'#6f42c1':''}">${u.role.toUpperCase()}</span></td>
         <td>${u.department || '-'}</td>
         <td>${u.studentId || '-'}</td>
         <td>
-          <button class="btn btn-danger btn-sm" onclick="deleteUser('${u._id || u.id}', '${u.name}')">
+          <button class="btn btn-danger btn-sm" onclick="deleteUser('${u._id}', '${u.name}')">
             <i class="fas fa-trash"></i>
           </button>
         </td>
@@ -322,19 +330,66 @@
     ));
   }
 
+  async function loadPending() {
+    const res = await fetch('/api/pending');
+    const data = await res.json();
+    const pending = data.pending;
+    document.getElementById('pendingCount').textContent = pending.length;
+    document.getElementById('pendingBadge').textContent = pending.length;
+
+    const list = document.getElementById('pendingList');
+    if (pending.length === 0) {
+      list.innerHTML = '<div class="text-center text-muted py-4"><i class="fas fa-check-circle fa-3x mb-3 opacity-25"></i><p>No pending requests!</p></div>';
+      return;
+    }
+    list.innerHTML = pending.map(p => `
+      <div class="pending-card">
+        <div class="d-flex justify-content-between align-items-start">
+          <div>
+            <h6 class="fw-bold mb-1">${p.name} <span class="pending-badge">Pending</span></h6>
+            <div class="text-muted small">${p.email}</div>
+            <div class="text-muted small">${p.department} • ${p.semester} Semester • ID: ${p.studentId}</div>
+            <div class="text-muted small">Requested: ${p.requestedAt}</div>
+          </div>
+          <div class="d-flex gap-2">
+            <button class="btn btn-success btn-sm" onclick="approveUser('${p._id}')">
+              <i class="fas fa-check me-1"></i>Approve
+            </button>
+            <button class="btn btn-danger btn-sm" onclick="rejectUser('${p._id}')">
+              <i class="fas fa-times me-1"></i>Reject
+            </button>
+          </div>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  async function approveUser(id) {
+    const res = await fetch(`/api/approve/${id}`, { method: 'POST' });
+    const data = await res.json();
+    if (data.success) {
+      alert('✅ User approved!');
+      loadAll();
+    }
+  }
+
+  async function rejectUser(id) {
+    if (!confirm('Reject this request?')) return;
+    await fetch(`/api/pending/${id}`, { method: 'DELETE' });
+    loadPending();
+  }
+
   async function loadAttendance() {
     const res = await fetch('/api/attendance');
     const data = await res.json();
     allAttendance = data.attendance;
     filteredAttendance = allAttendance;
-    document.getElementById('totalAttendance').textContent = allAttendance.length;
     renderAttendance(allAttendance);
   }
 
   function filterAttendance() {
     const dept = document.getElementById('filterDept').value;
     const date = document.getElementById('filterDate').value;
-
     filteredAttendance = allAttendance.filter(a => {
       const deptMatch = dept ? a.department === dept : true;
       const dateMatch = date ? a.date === new Date(date).toLocaleDateString('en-BD') : true;
@@ -363,7 +418,7 @@
   }
 
   async function deleteUser(id, name) {
-    if (!confirm(`Delete user "${name}"?`)) return;
+    if (!confirm(`Delete "${name}"?`)) return;
     await fetch(`/api/users/${id}`, { method: 'DELETE' });
     loadUsers();
   }
@@ -380,7 +435,7 @@
 
     if (!name || !email || !password) {
       alertBox.className = 'alert alert-warning';
-      alertBox.textContent = 'Please fill all required fields!';
+      alertBox.textContent = 'Please fill all fields!';
       alertBox.classList.remove('d-none');
       return;
     }
@@ -403,38 +458,34 @@
       document.getElementById('newPassword').value = '';
       loadUsers();
       setTimeout(() => alertBox.classList.add('d-none'), 3000);
+    } else {
+      alertBox.className = 'alert alert-danger';
+      alertBox.textContent = data.message;
+      alertBox.classList.remove('d-none');
     }
   }
 
-  // ── Export CSV ────────────────────────────────────────
   function exportCSV() {
     const rows = [['Student Name', 'Student ID', 'Subject', 'Department', 'Date', 'Time']];
     filteredAttendance.forEach(a => rows.push([a.studentName, a.studentId, a.subject, a.department, a.date, a.time]));
     const csv = rows.map(r => r.join(',')).join('\n');
     const blob = new Blob([csv], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
-    link.href = url;
-    link.download = `attendance_report_${new Date().toLocaleDateString()}.csv`;
+    link.href = URL.createObjectURL(blob);
+    link.download = `attendance_${new Date().toLocaleDateString()}.csv`;
     link.click();
   }
 
-  // ── Export PDF ────────────────────────────────────────
   function exportPDF() {
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF();
-
-    // Header
     doc.setFontSize(18);
     doc.setTextColor(111, 66, 193);
-    doc.text('Polytechnic Attendance System', 14, 20);
-
+    doc.text('Polytechnic Attendance Report', 14, 20);
     doc.setFontSize(11);
     doc.setTextColor(100);
-    doc.text(`Report Generated: ${new Date().toLocaleString('en-BD')}`, 14, 28);
+    doc.text(`Generated: ${new Date().toLocaleString('en-BD')}`, 14, 28);
     doc.text(`Total Records: ${filteredAttendance.length}`, 14, 35);
-
-    // Table
     doc.autoTable({
       startY: 42,
       head: [['Student Name', 'Student ID', 'Subject', 'Department', 'Date', 'Time']],
@@ -444,15 +495,11 @@
       styles: { fontSize: 9, cellPadding: 4 },
       margin: { left: 14, right: 14 }
     });
-
-    doc.save(`attendance_report_${new Date().toLocaleDateString()}.pdf`);
+    doc.save(`attendance_${new Date().toLocaleDateString()}.pdf`);
   }
 
-  // ── Print ─────────────────────────────────────────────
   function printReport() {
-    // Show attendance tab before printing
     document.getElementById('tab-attendance').classList.remove('d-none');
-    document.getElementById('printDate').textContent = new Date().toLocaleString('en-BD');
     window.print();
   }
 
@@ -464,11 +511,12 @@
   }
 
   function showTab(tab, el) {
-    ['users', 'attendance', 'add'].forEach(t => document.getElementById(`tab-${t}`).classList.add('d-none'));
+    ['users', 'pending', 'attendance', 'add'].forEach(t => document.getElementById(`tab-${t}`).classList.add('d-none'));
     document.getElementById(`tab-${tab}`).classList.remove('d-none');
     document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
     el.classList.add('active');
     if (tab === 'attendance') loadAttendance();
+    if (tab === 'pending') loadPending();
   }
 
   function logout() { localStorage.removeItem('user'); window.location.href = '/'; }
